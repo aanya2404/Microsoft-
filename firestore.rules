@@ -1,0 +1,51 @@
+rules_version = '2';
+
+// Visitors can only ADD an application or a message, and only with the expected fields.
+// Nobody can read, change or delete anything from the website; read submissions in the Firebase console.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function text(data, key, max) {
+      return data[key] is string && data[key].size() <= max;
+    }
+
+    function requiredText(data, key, max) {
+      return text(data, key, max) && data[key].size() > 0;
+    }
+
+    match /applications/{id} {
+      allow create: if request.resource.data.keys().hasOnly([
+          'name', 'email', 'phone', 'sapId', 'year', 'branch', 'departments', 'why', 'link', 'createdAt'
+        ])
+        && requiredText(request.resource.data, 'name', 100)
+        && requiredText(request.resource.data, 'email', 200)
+        && requiredText(request.resource.data, 'phone', 30)
+        && requiredText(request.resource.data, 'sapId', 30)
+        && requiredText(request.resource.data, 'year', 30)
+        && requiredText(request.resource.data, 'branch', 100)
+        && request.resource.data.departments is list
+        && request.resource.data.departments.size() > 0
+        && request.resource.data.departments.size() <= 5
+        && requiredText(request.resource.data, 'why', 3000)
+        && text(request.resource.data, 'link', 300)
+        && request.resource.data.createdAt == request.time;
+      allow read, update, delete: if false;
+    }
+
+    match /messages/{id} {
+      allow create: if request.resource.data.keys().hasOnly([
+          'name', 'email', 'subject', 'message', 'createdAt'
+        ])
+        && requiredText(request.resource.data, 'name', 100)
+        && requiredText(request.resource.data, 'email', 200)
+        && requiredText(request.resource.data, 'subject', 200)
+        && requiredText(request.resource.data, 'message', 3000)
+        && request.resource.data.createdAt == request.time;
+      allow read, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
